@@ -1010,3 +1010,4 @@ if (isLoggedIn() && getStoredUser()) {
 } else {
   showAuthScreen();
 }
+
