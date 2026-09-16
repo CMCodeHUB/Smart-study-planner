@@ -121,9 +121,7 @@ h2{ font-size: var(--text-lg); }
    Layout
    ========================================================= */
 .app{
-  display:grid;
   grid-template-columns: 236px 1fr;
-  
 }
 
 .sidebar{
@@ -1117,5 +1115,41 @@ body {
     width: 100%;
     min-width: 0;
     overflow-x: hidden;
+  }
+}
+/* =========================================================
+   STUDYFLOW — FIX SIDEBAR WHILE MAIN CONTENT SCROLLS
+   ========================================================= */
+
+@media (min-width: 761px) {
+
+  /* Keep sidebar locked to the viewport */
+  .app > .sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+
+    width: 240px !important;
+    height: 100vh !important;
+    min-height: 100vh !important;
+    max-height: 100vh !important;
+
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+
+    z-index: 1000 !important;
+  }
+
+  /* Main content becomes the scrolling area */
+  .app > .main {
+    margin-left: 240px !important;
+
+    width: calc(100% - 240px) !important;
+
+    height: 100vh !important;
+    max-height: 100vh !important;
+
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
   }
 }
