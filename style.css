@@ -884,7 +884,6 @@ overflow:hidden;
   font-size:.92rem;
   white-space:nowrap;
   text-overflow:ellipsis}
-
 .note-list-snippet {
   overflow: hidden;
   color: var(--ink-dim);
@@ -986,3 +985,110 @@ align-items:flex-start;
 justify-content:flex-start}
 }
 
+
+/* =========================================================
+   Mobile Overflow Fix
+   Prevent wide content from expanding the mobile viewport.
+   ========================================================= */
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.app,
+.main,
+.view,
+.view-header,
+.panel,
+.card,
+.clock-panel,
+.calc-wrap,
+.calc {
+  min-width: 0;
+  max-width: 100%;
+}
+
+@media (max-width: 760px) {
+  .mobile-bar {
+    width: 100%;
+    max-width: 100vw;
+    min-width: 0;
+    min-height: 62px;
+    overflow: hidden;
+  }
+
+  .mobile-bar > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .mobile-bar .brand-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .main {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+  }
+
+  .clock-panel {
+    width: 100%;
+    padding: 42px 12px;
+    overflow: hidden;
+  }
+
+  .clock-time {
+    max-width: 100%;
+    font-size: clamp(2rem, 11vw, 2.6rem);
+    overflow-wrap: anywhere;
+  }
+
+  .clock-date,
+  .clock-tz {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .calc-wrap {
+    width: 100%;
+    min-width: 0;
+    padding: 0;
+  }
+
+  .calc {
+    width: 100%;
+    max-width: 360px;
+    min-width: 0;
+    padding: 14px;
+  }
+
+  .calc-grid {
+    gap: 7px;
+  }
+
+  .calc-btn {
+    min-width: 0;
+    padding: 14px 0;
+  }
+
+  .calc-result,
+  .calc-expression {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  #view-habits,
+  #view-diary,
+  #view-clock,
+  #view-calculator {
+    width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+  }
+}
