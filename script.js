@@ -1480,3 +1480,241 @@ if (isLoggedIn() && getStoredUser()) {
 } else {
   showAuthScreen();
 }
+/* ================= NOTEPAD MODULE ================= */
+(function initNotepad() {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const elements = {
+    newButton: $('newNoteBtn'),
+    search: $('noteSearch'),
+    list: $('noteList'),
+    save: $('saveNoteBtn'),
+    delete: $('deleteNoteBtn'),
+    download: $('downloadNoteBtn'),
+    title: $('noteTitleInput'),
+    body: $('noteBodyInput'),
+    status: $('noteStatus'),
+    updated: $('noteUpdatedAt'),
+    words: $('noteWordCount'),
+  };
+
+  if (Object.values(elements).some((element) => !element)) {
+    console.warn('Notepad elements are missing.');
+    return;
+  }
+
+  const STORAGE_KEY = 'studyflow_notes_v1';
+  let notes = [];
+  let activeNoteId = null;
+  let autoSaveTimer = null;
+
+  const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;',
+  }[character]));
+
+  const formatDate = (timestamp) => timestamp
+    ? new Date(timestamp).toLocaleDateString(undefined, {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      })
+    : 'Not saved';
+
+  const getActiveNote = () => notes.find((note) => note.id === activeNoteId) || null;
+
+  function updateStatus(message) {
+    elements.status.textContent = message;
+  }
+
+  function saveNotesToStorage() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+      return true;
+    } catch (error) {
+      console.error('Unable to save notes:', error);
+      return false;
+    }
+  }
+
+  function loadNotesFromStorage() {
+    try {
+      const storedNotes = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      notes = Array.isArray(storedNotes) ? storedNotes : [];
+    } catch (error) {
+      notes = [];
+      console.error('Unable to load notes:', error);
+    }
+  }
+
+  function renderNoteList() {
+    const query = elements.search.value.toLowerCase().trim();
+    const filteredNotes = notes
+      .filter((note) => `${note.title} ${note.body}`.toLowerCase().includes(query))
+      .sort((first, second) => second.updatedAt - first.updatedAt);
+
+    elements.list.innerHTML = filteredNotes.length
+      ? filteredNotes.map((note) => `
+          <button type="button" class="note-list-item ${note.id === activeNoteId ? 'is-active' : ''}" data-note-id="${escapeHtml(note.id)}">
+            <span class="note-list-title">${escapeHtml(note.title || 'Untitled Note')}</span>
+            <span class="note-list-snippet">${escapeHtml(note.body || 'No content yet...')}</span>
+            <span class="note-list-date">${formatDate(note.updatedAt)}</span>
+          </button>
+        `).join('')
+      : `<p class="empty-note">${query ? 'No matching notes found.' : 'No notes yet. Create one!'}</p>`;
+  }
+
+  function updateWordCount() {
+    const bodyText = elements.body.value.trim();
+    const wordCount = bodyText ? bodyText.split(/\s+/).length : 0;
+    elements.words.textContent = `${wordCount} words`;
+  }
+
+  function openNote(noteId) {
+    const note = notes.find((item) => item.id === noteId);
+    if (!note) return;
+
+    activeNoteId = noteId;
+    elements.title.value = note.title || '';
+    elements.body.value = note.body || '';
+    elements.updated.textContent = `Last updated: ${formatDate(note.updatedAt)}`;
+
+    updateWordCount();
+    renderNoteList();
+    updateStatus('Note loaded');
+  }
+
+  function createNewNote() {
+    activeNoteId = null;
+    elements.title.value = '';
+    elements.body.value = '';
+    elements.updated.textContent = 'Not saved yet';
+
+    updateWordCount();
+    renderNoteList();
+    updateStatus('New note');
+    elements.title.focus();
+  }
+
+  function saveCurrentNote() {
+    const title = elements.title.value.trim();
+    const body = elements.body.value;
+
+    if (!title && !body.trim()) {
+      updateStatus('Write something before saving.');
+      return;
+    }
+
+    const now = Date.now();
+    const existingNote = getActiveNote();
+
+    if (existingNote) {
+      existingNote.title = title || 'Untitled Note';
+      existingNote.body = body;
+      existingNote.updatedAt = now;
+    } else {
+      const newNote = {
+        id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`,
+        title: title || 'Untitled Note',
+        body,
+        updatedAt: now,
+      };
+
+      notes.push(newNote);
+      activeNoteId = newNote.id;
+    }
+
+    if (!saveNotesToStorage()) {
+      updateStatus('Unable to save note.');
+      return;
+    }
+
+    elements.updated.textContent = `Last updated: ${formatDate(now)}`;
+    renderNoteList();
+    updateStatus('Saved successfully ✓');
+  }
+
+  function scheduleAutoSave() {
+    clearTimeout(autoSaveTimer);
+    updateStatus('Typing...');
+
+    autoSaveTimer = setTimeout(() => {
+      if (elements.title.value.trim() || elements.body.value.trim()) {
+        saveCurrentNote();
+      }
+    }, 1000);
+  }
+
+  function deleteCurrentNote() {
+    if (!activeNoteId) {
+      updateStatus('No note selected.');
+      return;
+    }
+
+    const note = getActiveNote();
+    if (!note || !confirm(`Delete "${note.title}"?`)) return;
+
+    notes = notes.filter((item) => item.id !== activeNoteId);
+    saveNotesToStorage();
+    createNewNote();
+    updateStatus('Note deleted');
+  }
+
+  function downloadCurrentNote() {
+    const note = getActiveNote();
+    if (!note) {
+      updateStatus('Save a note before downloading.');
+      return;
+    }
+
+    const fileContent = `${note.title}\n\n${note.body}`;
+    const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+
+    link.href = url;
+    link.download = (note.title || 'note')
+      .replace(/[<>:"/\\|?*\x00-\x1F]/g, '')
+      .trim() || 'note';
+    link.click();
+
+    URL.revokeObjectURL(url);
+    updateStatus('Downloaded ✓');
+  }
+
+  elements.newButton.addEventListener('click', createNewNote);
+  elements.search.addEventListener('input', renderNoteList);
+  elements.list.addEventListener('click', (event) => {
+    const noteButton = event.target.closest('[data-note-id]');
+    if (noteButton) openNote(noteButton.dataset.noteId);
+  });
+  elements.save.addEventListener('click', () => {
+    clearTimeout(autoSaveTimer);
+    saveCurrentNote();
+  });
+  elements.delete.addEventListener('click', deleteCurrentNote);
+  elements.download.addEventListener('click', downloadCurrentNote);
+  elements.title.addEventListener('input', () => {
+    updateWordCount();
+    scheduleAutoSave();
+  });
+  elements.body.addEventListener('input', () => {
+    updateWordCount();
+    scheduleAutoSave();
+  });
+
+  loadNotesFromStorage();
+  renderNoteList();
+  updateWordCount();
+
+  if (notes.length) {
+    const latestNote = [...notes].sort((first, second) => second.updatedAt - first.updatedAt)[0];
+    openNote(latestNote.id);
+  } else {
+    createNewNote();
+  }
+})();

@@ -827,3 +827,162 @@ h2{ font-size: var(--text-lg); }
   .clock-time{ font-size:2.6rem; }
   .calc{ max-width:100%; }
 }
+/* ================= NOTEPAD ================= */
+.notepad-app {
+display:grid;
+  grid-template-columns:280px minmax(0,1fr);
+  min-height:600px;
+  overflow:hidden;
+  border:1px solid var(--border);
+  border-radius:18px;
+  background:var(--panel);
+}
+
+.notepad-sidebar {
+display:flex;
+  flex-direction:column;
+  gap:18px;
+  padding:22px;
+  border-right:1px solid var(--border);
+  background:var(--panel);
+}
+
+.notepad-sidebar-head {
+display:flex;
+  flex-direction:column;
+  gap:14px}
+.notepad-sidebar-head h2 {
+margin:0;
+  font-size:1.25rem}
+
+.note-list {
+display:flex;
+  flex-direction:column;
+  gap:8px;
+  overflow-y:auto;
+  max-height:450px}
+.note-list-item {
+display:flex;
+  flex-direction:column;
+  gap:6px;
+  width:100%;
+  padding:14px;
+  text-align:left;
+  border:1px solid transparent;
+  border-radius:12px;
+  background:transparent;
+  color:var(--ink);
+  cursor:pointer;
+  transition:.2s}
+.note-list-item:hover,.note-list-item.is-active {
+background:var(--surface);
+  border-color:var(--accent)}
+
+.note-list-title {
+overflow:hidden;
+  font-weight:700;
+  font-size:.92rem;
+  white-space:nowrap;
+  text-overflow:ellipsis}
+
+.note-list-snippet {
+  overflow: hidden;
+  color: var(--ink-dim);
+  font-size: 0.78rem;
+  line-height: 1.5;
+
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+
+  line-clamp: 2;
+}
+.note-list-date {
+color:var(--ink-faint);
+  font-size:.7rem}
+
+.notepad-editor {
+display:flex;
+  flex-direction:column;
+  min-width:0;
+  padding:22px 28px;
+  background:var(--panel)}
+.notepad-control-header {
+display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding-bottom:16px;
+  border-bottom:1px solid var(--border-soft)}
+.notepad-actions {
+display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:8px;
+  flex-wrap:wrap}
+.note-editor-content {
+display:flex;
+  flex-direction:column;
+  flex:1;
+  min-height:0}
+.note-title-input,.note-body-input {
+width:100%;
+  border:0;
+  outline:none;
+  background:transparent;
+  color:var(--ink);
+  font-family:inherit}
+.note-title-input {
+padding:30px 0 14px;
+  font-size:clamp(1.7rem,3vw,2.5rem);
+  font-weight:700}
+.note-body-input {
+flex:1;
+  min-height:300px;
+  padding:10px 0;
+  resize:vertical;
+  font-size:1rem;
+  line-height:1.9}
+.note-title-input::placeholder,.note-body-input::placeholder {
+color:var(--ink-faint)}
+.note-editor-footer {
+display:flex;
+  justify-content:space-between;
+  gap:12px;
+  padding-top:14px;
+  border-top:1px solid var(--border-soft);
+  color:var(--ink-faint);
+  font-size:.75rem}
+.note-status {
+color:var(--ink-dim);
+  font-size:.75rem}
+.danger-action {
+color:var(--coral)}
+.sr-only {
+position:absolute;
+  width:1px;
+  height:1px;
+  padding:0;
+  margin:-1px;
+  overflow:hidden;
+  clip:rect(0,0,0,0);
+  white-space:nowrap;
+  border:0}
+
+@media(max-width:760px) {
+.notepad-app {
+grid-template-columns:1fr}
+.notepad-sidebar {
+border-right:0;
+  border-bottom:1px solid var(--border)}
+.note-list {
+max-height:240px}
+.notepad-editor {
+padding:18px}
+.notepad-control-header {
+align-items:flex-start;
+  flex-direction:column}
+.notepad-actions {
+justify-content:flex-start}
+}
+

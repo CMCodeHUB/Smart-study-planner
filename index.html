@@ -102,6 +102,10 @@
         <svg class="nav-icon" viewBox="0 0 24 24"><path d="M4 19.5V4.5A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v17a1 1 0 0 1-1 1H6.5A2.5 2.5 0 0 1 4 19.5Z"/><path d="M8 7h8M8 11h8M8 15h5"/></svg>
         <span>Diary</span>
       </button>
+      <button class="nav-item" data-view="notepad">
+        <svg class="nav-icon" viewBox="0 0 24 24"><path d="M5 3h14v18H5z"/><path d="M8 7h8M8 11h8M8 15h5"/></svg>
+        <span>Notepad</span>
+      </button>
       <button class="nav-item" data-view="clock">
         <svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
         <span>Clock</span>
@@ -407,6 +411,47 @@
         </form>
         <div class="task-list" id="diaryGoalList">
           <p class="empty-note">Nothing here yet — add your first goal above.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- NOTEPAD ---------- -->
+    <section class="view" id="view-notepad">
+      <div class="view-header">
+        <div>
+          <div class="diary-breadcrumb">Study Tools <span class="breadcrumb-sep">/</span> Notepad</div>
+          <h1>My Notepad 📝</h1>
+          <p class="subtle">Write, organize, and save your study notes.</p>
+        </div>
+      </div>
+
+      <div class="notepad-app">
+        <aside class="notepad-sidebar">
+          <div class="notepad-sidebar-head">
+            <h2>My Notes</h2>
+            <button type="button" class="btn btn-primary" id="newNoteBtn">+ New Note</button>
+          </div>
+          <label class="sr-only" for="noteSearch">Search notes</label>
+          <input class="input" id="noteSearch" type="search" placeholder="Search notes..." autocomplete="off">
+          <div class="note-list" id="noteList"></div>
+        </aside>
+
+        <div class="notepad-editor">
+          <div class="notepad-control-header">
+            <span class="note-status" id="noteStatus">Ready</span>
+            <div class="notepad-actions">
+              <button type="button" class="btn btn-primary" id="saveNoteBtn">Save Note</button>
+              <button type="button" class="btn btn-ghost danger-action" id="deleteNoteBtn">Delete Note</button>
+              <button type="button" class="btn btn-ghost" id="downloadNoteBtn">Download as .txt</button>
+            </div>
+          </div>
+          <div class="note-editor-content">
+            <label class="sr-only" for="noteTitleInput">Note title</label>
+            <input class="note-title-input" id="noteTitleInput" type="text" maxlength="150" placeholder="Untitled Note">
+            <label class="sr-only" for="noteBodyInput">Note body</label>
+            <textarea class="note-body-input" id="noteBodyInput" placeholder="Start writing your note..." rows="12"></textarea>
+            <div class="note-editor-footer"><span id="noteUpdatedAt">Not saved yet</span><span id="noteWordCount">0 words</span></div>
+          </div>
         </div>
       </div>
     </section>
