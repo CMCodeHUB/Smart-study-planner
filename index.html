@@ -94,6 +94,22 @@
         <svg class="nav-icon" viewBox="0 0 24 24"><path d="M4 20V10M12 20V4M20 20v-7"/></svg>
         <span>Statistics</span>
       </button>
+      <button class="nav-item" data-view="habits">
+        <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        <span>Habits</span>
+      </button>
+      <button class="nav-item" data-view="diary">
+        <svg class="nav-icon" viewBox="0 0 24 24"><path d="M4 19.5V4.5A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v17a1 1 0 0 1-1 1H6.5A2.5 2.5 0 0 1 4 19.5Z"/><path d="M8 7h8M8 11h8M8 15h5"/></svg>
+        <span>Diary</span>
+      </button>
+      <button class="nav-item" data-view="clock">
+        <svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
+        <span>Clock</span>
+      </button>
+      <button class="nav-item" data-view="calculator">
+        <svg class="nav-icon" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M7 11h2M11 11h2M15 11h2M7 15h2M11 15h2M15 15h2M7 19h2M11 19h2M15 19h2"/></svg>
+        <span>Calculator</span>
+      </button>
     </nav>
 
     <div class="sidebar-foot">
@@ -310,6 +326,150 @@
       </div>
     </section>
 
+    <!-- ---------- HABITS ---------- -->
+    <section class="view" id="view-habits">
+      <div class="view-header">
+        <div>
+          <h1>Habits</h1>
+          <p class="subtle">Habitub — small actions, tracked daily.</p>
+        </div>
+        <button class="btn btn-primary" id="addHabitBtn">+ Add habit</button>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat-card stat-amber">
+          <span class="stat-value" id="statHabitsTracked">0</span>
+          <span class="stat-label">Habits tracked</span>
+        </div>
+        <div class="stat-card stat-teal">
+          <span class="stat-value" id="statHabitsToday">0/0</span>
+          <span class="stat-label">Done today</span>
+        </div>
+        <div class="stat-card stat-ink">
+          <span class="stat-value" id="statBestStreak">0 🔥</span>
+          <span class="stat-label">Best streak</span>
+        </div>
+        <div class="stat-card stat-teal">
+          <span class="stat-value" id="statCheckinsWeek">0</span>
+          <span class="stat-label">Check-ins this week</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Today</h2>
+        </div>
+        <div class="task-list" id="todayHabitList">
+          <p class="empty-note">No habits yet. Add one to start tracking.</p>
+        </div>
+      </div>
+
+      <div class="panel-head" style="margin: 0 2px 12px;">
+        <h2>Activity grids</h2>
+        <span class="subtle">Click any square to mark that day done or undone</span>
+      </div>
+      <div id="habitGrids">
+        <p class="empty-note">Your activity grids will appear here once you add a habit.</p>
+      </div>
+    </section>
+
+    <!-- ---------- DIARY ---------- -->
+    <section class="view" id="view-diary">
+      <div class="view-header">
+        <div>
+          <div class="diary-breadcrumb">Diary <span class="breadcrumb-sep">/</span> Diary 3</div>
+          <h1>Goals Diary</h1>
+          <p class="subtle">Write down what you're aiming for — today, this week, and beyond.</p>
+        </div>
+      </div>
+
+      <div class="tabs" id="diaryTabs">
+        <button type="button" class="tab-btn is-active" data-scope="today">Today Goal</button>
+        <button type="button" class="tab-btn" data-scope="week">Week Goal</button>
+        <button type="button" class="tab-btn" data-scope="future">Future Goal</button>
+      </div>
+
+      <div class="panel diary-panel">
+        <div class="panel-head">
+          <h2 id="diaryPaneTitle">Today's goals</h2>
+          <span class="subtle" id="diaryPaneCount">0/0 done</span>
+        </div>
+        <form id="diaryGoalForm" class="diary-add-form">
+          <div class="field">
+            <label class="field-label" for="diaryGoalInput">Goal</label>
+            <input type="text" class="input" id="diaryGoalInput" placeholder="What do you want to achieve today?" required>
+          </div>
+          <div class="field">
+            <label class="field-label" for="diaryGoalDescInput">Description <span class="field-optional">(optional)</span></label>
+            <textarea class="input diary-textarea" id="diaryGoalDescInput" placeholder="Add any details, steps, or notes about this goal…" rows="2"></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary">Add goal</button>
+        </form>
+        <div class="task-list" id="diaryGoalList">
+          <p class="empty-note">Nothing here yet — add your first goal above.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- CLOCK ---------- -->
+    <section class="view" id="view-clock">
+      <div class="view-header">
+        <div>
+          <h1>Clock</h1>
+          <p class="subtle">The current time, updated live.</p>
+        </div>
+      </div>
+      <div class="panel clock-panel">
+        <span class="clock-icon" id="clockIcon">🌤️</span>
+        <span class="clock-time" id="clockTime">00:00:00</span>
+        <span class="clock-date" id="clockDate">—</span>
+        <span class="clock-tz subtle" id="clockTZ"></span>
+      </div>
+    </section>
+
+    <!-- ---------- CALCULATOR ---------- -->
+    <section class="view" id="view-calculator">
+      <div class="view-header">
+        <div>
+          <h1>Calculator</h1>
+          <p class="subtle">Quick calculations, right where you're studying.</p>
+        </div>
+      </div>
+      <div class="calc-wrap">
+        <div class="calc">
+          <div class="calc-display">
+            <span class="calc-expression" id="calcExpression"></span>
+            <span class="calc-result" id="calcResult">0</span>
+          </div>
+          <div class="calc-grid" id="calcGrid">
+            <button type="button" class="calc-btn calc-fn" data-action="clear">AC</button>
+            <button type="button" class="calc-btn calc-fn" data-action="backspace">⌫</button>
+            <button type="button" class="calc-btn calc-fn" data-action="percent">%</button>
+            <button type="button" class="calc-btn calc-op" data-op="÷">÷</button>
+
+            <button type="button" class="calc-btn" data-num="7">7</button>
+            <button type="button" class="calc-btn" data-num="8">8</button>
+            <button type="button" class="calc-btn" data-num="9">9</button>
+            <button type="button" class="calc-btn calc-op" data-op="×">×</button>
+
+            <button type="button" class="calc-btn" data-num="4">4</button>
+            <button type="button" class="calc-btn" data-num="5">5</button>
+            <button type="button" class="calc-btn" data-num="6">6</button>
+            <button type="button" class="calc-btn calc-op" data-op="−">−</button>
+
+            <button type="button" class="calc-btn" data-num="1">1</button>
+            <button type="button" class="calc-btn" data-num="2">2</button>
+            <button type="button" class="calc-btn" data-num="3">3</button>
+            <button type="button" class="calc-btn calc-op" data-op="+">+</button>
+
+            <button type="button" class="calc-btn calc-zero" data-num="0">0</button>
+            <button type="button" class="calc-btn" data-num=".">.</button>
+            <button type="button" class="calc-btn calc-equals" data-action="equals">=</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
   </main>
 </div>
 
@@ -343,6 +503,31 @@
       <div class="modal-actions">
         <button type="button" class="btn btn-ghost" id="deleteSubjectBtn">Delete</button>
         <button type="submit" class="btn btn-primary">Save subject</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ MODAL: Add / Edit Habit ============ -->
+<div class="modal-overlay" id="habitModalOverlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="habitModalTitle">Add habit</h3>
+      <button class="icon-btn" id="habitModalClose" aria-label="Close">&times;</button>
+    </div>
+    <form id="habitForm">
+      <input type="hidden" id="habitId">
+      <div class="field">
+        <label class="field-label" for="habitName">Habit name</label>
+        <input class="input" type="text" id="habitName" placeholder="e.g. Read 20 minutes" required>
+      </div>
+      <div class="field">
+        <label class="field-label">Color</label>
+        <div class="color-picker" id="habitColorPicker"></div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="deleteHabitBtn">Delete</button>
+        <button type="submit" class="btn btn-primary">Save habit</button>
       </div>
     </form>
   </div>

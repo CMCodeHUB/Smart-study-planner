@@ -11,6 +11,7 @@ const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const WORK_SECONDS = 25 * 60;
 const BREAK_SECONDS = 5 * 60;
 const RING_CIRCUMFERENCE = 2 * Math.PI * 100;
+const HABIT_GRID_WEEKS = 12;
 
 /* ---------------------------------------------------------
    Date helpers (local time, no UTC shifting)
@@ -19,7 +20,7 @@ function pad(n) { return n.toString().padStart(2, '0'); }
 function toISODate(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
 function fromISODate(s) { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); }
 function todayISO() { return toISODate(new Date()); }
-function addDays(d, n) { const c = new Date(d); c.setDate(c.getDate() + n); return c; }
+function addDays(d, n) { const c = new Date(d.getFullYear(), d.getMonth(), d.getDate()); c.setDate(c.getDate() + n); return c; }
 function getMonday(d) {
   const c = new Date(d);
   const day = c.getDay();
@@ -51,6 +52,16 @@ function seedState() {
   const today = new Date();
   const iso = (offset) => toISODate(addDays(today, offset));
   const s1 = uid(), s2 = uid(), s3 = uid();
+  const h1 = uid(), h2 = uid(), h3 = uid();
+
+  const habitLogs = [];
+  for (let i = 0; i < 21; i++) {
+    const d = iso(-i);
+    if (i % 7 !== 3) habitLogs.push({ id: uid(), habitId: h1, date: d });
+    if (i % 2 === 0) habitLogs.push({ id: uid(), habitId: h2, date: d });
+    if (i % 4 === 0) habitLogs.push({ id: uid(), habitId: h3, date: d });
+  }
+
   return {
     theme: 'dark',
     subjects: [
@@ -72,6 +83,17 @@ function seedState() {
       { id: uid(), subjectId: s1, date: iso(-3), minutes: 50, type: 'work', time: '16:30' },
       { id: uid(), subjectId: s3, date: iso(-4), minutes: 25, type: 'work', time: '20:00' },
     ],
+    habits: [
+      { id: h1, name: 'Read 20 minutes', color: PALETTE[2] },
+      { id: h2, name: 'Exercise', color: PALETTE[3] },
+      { id: h3, name: 'No sugar', color: PALETTE[5] },
+    ],
+    habitLogs,
+    diaryGoals: [
+      { id: uid(), scope: 'today', text: 'Finish the integration practice set', description: 'Chapters 6–7, at least 15 problems. Focus on substitution method first.', done: false, date: iso(0) },
+      { id: uid(), scope: 'week', text: 'Complete 3 mock tests', description: 'One per subject — Math, Data Structures, JavaScript. Review mistakes after each.', done: false, date: iso(0) },
+      { id: uid(), scope: 'future', text: 'Get into a strong engineering program', description: '', done: false, date: iso(0) },
+    ],
   };
 }
 
@@ -80,7 +102,14 @@ let state = load();
 function load() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      // Backfill fields for state saved before these features existed
+      parsed.habits = parsed.habits || [];
+      parsed.habitLogs = parsed.habitLogs || [];
+      parsed.diaryGoals = parsed.diaryGoals || [];
+      return parsed;
+    }
   } catch (e) { /* fall through to seed */ }
   const seeded = seedState();
   localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded));
@@ -159,6 +188,51 @@ function computeStreak() {
 }
 
 /* ---------------------------------------------------------
+   Habits — generic streak helpers + grid range
+   --------------------------------------------------------- */
+function getHabit(id) { return state.habits.find(h => h.id === id); }
+function habitDatesSet(habitId) {
+  return new Set(state.habitLogs.filter(l => l.habitId === habitId).map(l => l.date));
+}
+function currentStreakFromSet(datesSet) {
+  let streak = 0;
+  let cursor = fromISODate(todayISO());
+  if (datesSet.has(toISODate(cursor))) { streak = 1; cursor = addDays(cursor, -1); }
+  else { cursor = addDays(cursor, -1); }
+  while (datesSet.has(toISODate(cursor))) { streak++; cursor = addDays(cursor, -1); }
+  return streak;
+}
+function longestStreakFromSet(datesSet) {
+  if (datesSet.size === 0) return 0;
+  const sorted = [...datesSet].map(fromISODate).sort((a, b) => a - b);
+  let longest = 1, run = 1;
+  for (let i = 1; i < sorted.length; i++) {
+    const diffDays = Math.round((sorted[i] - sorted[i - 1]) / 86400000);
+    if (diffDays === 1) run++;
+    else if (diffDays > 1) run = 1;
+    longest = Math.max(longest, run);
+  }
+  return longest;
+}
+function habitCurrentStreak(habitId) { return currentStreakFromSet(habitDatesSet(habitId)); }
+function habitLongestStreak(habitId) { return longestStreakFromSet(habitDatesSet(habitId)); }
+
+function habitGridRange(weeks) {
+  const monday = getMonday(new Date());
+  const start = addDays(monday, -(weeks - 1) * 7);
+  return Array.from({ length: weeks }, (_, w) => Array.from({ length: 7 }, (_, d) => addDays(start, w * 7 + d)));
+}
+
+function toggleHabitDate(habitId, iso) {
+  const existing = state.habitLogs.find(l => l.habitId === habitId && l.date === iso);
+  if (existing) state.habitLogs = state.habitLogs.filter(l => l !== existing);
+  else state.habitLogs.push({ id: uid(), habitId, date: iso });
+  save();
+  renderHabits();
+  if (currentViewName() === 'dashboard') renderDashboard();
+}
+
+/* ---------------------------------------------------------
    DOM refs
    --------------------------------------------------------- */
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -228,6 +302,39 @@ const els = {
   miniStats: $('#miniStats'),
   subjectProgressList: $('#subjectProgressList'),
   dailyBarChart: $('#dailyBarChart'),
+
+  addHabitBtn: $('#addHabitBtn'),
+  statHabitsTracked: $('#statHabitsTracked'),
+  statHabitsToday: $('#statHabitsToday'),
+  statBestStreak: $('#statBestStreak'),
+  statCheckinsWeek: $('#statCheckinsWeek'),
+  todayHabitList: $('#todayHabitList'),
+  habitGrids: $('#habitGrids'),
+  habitModalOverlay: $('#habitModalOverlay'),
+  habitModalTitle: $('#habitModalTitle'),
+  habitModalClose: $('#habitModalClose'),
+  habitForm: $('#habitForm'),
+  habitId: $('#habitId'),
+  habitName: $('#habitName'),
+  habitColorPicker: $('#habitColorPicker'),
+  deleteHabitBtn: $('#deleteHabitBtn'),
+
+  diaryTabs: $('#diaryTabs'),
+  diaryPaneTitle: $('#diaryPaneTitle'),
+  diaryPaneCount: $('#diaryPaneCount'),
+  diaryGoalForm: $('#diaryGoalForm'),
+  diaryGoalInput: $('#diaryGoalInput'),
+  diaryGoalDescInput: $('#diaryGoalDescInput'),
+  diaryGoalList: $('#diaryGoalList'),
+
+  clockIcon: $('#clockIcon'),
+  clockTime: $('#clockTime'),
+  clockDate: $('#clockDate'),
+  clockTZ: $('#clockTZ'),
+
+  calcExpression: $('#calcExpression'),
+  calcResult: $('#calcResult'),
+  calcGrid: $('#calcGrid'),
 };
 
 /* ===========================================================
@@ -365,8 +472,8 @@ auth.form.addEventListener('submit', (e) => {
     if (!name) { setFieldError(auth.name, auth.nameError, 'Name is required.'); valid = false; }
     else clearFieldError(auth.name, auth.nameError);
 
-    const confirm = auth.confirm.value;
-    if (confirm !== password) { setFieldError(auth.confirm, auth.confirmError, 'Passwords do not match.'); valid = false; }
+    const confirmPassword = auth.confirm.value;
+    if (confirmPassword !== password) { setFieldError(auth.confirm, auth.confirmError, 'Passwords do not match.'); valid = false; }
     else clearFieldError(auth.confirm, auth.confirmError);
 
     if (!valid) return;
@@ -584,22 +691,22 @@ function renderSubjects() {
   });
 }
 
-function buildColorPicker(selected) {
-  els.colorPicker.innerHTML = '';
+function buildColorPicker(container, selected) {
+  container.innerHTML = '';
   PALETTE.forEach(color => {
     const sw = document.createElement('div');
     sw.className = 'color-swatch' + (color === selected ? ' is-selected' : '');
     sw.style.background = color;
     sw.dataset.color = color;
     sw.addEventListener('click', () => {
-      $$('.color-swatch', els.colorPicker).forEach(el => el.classList.remove('is-selected'));
+      $$('.color-swatch', container).forEach(el => el.classList.remove('is-selected'));
       sw.classList.add('is-selected');
     });
-    els.colorPicker.appendChild(sw);
+    container.appendChild(sw);
   });
 }
-function selectedColor() {
-  const sel = $('.color-swatch.is-selected', els.colorPicker);
+function selectedColorFrom(container) {
+  const sel = $('.color-swatch.is-selected', container);
   return sel ? sel.dataset.color : PALETTE[0];
 }
 
@@ -611,7 +718,7 @@ function openSubjectModal(id) {
   els.subjectExamDate.value = subject ? subject.examDate : '';
   els.subjectWeeklyTarget.value = subject ? subject.weeklyTarget : 5;
   els.deleteSubjectBtn.style.display = subject ? 'block' : 'none';
-  buildColorPicker(subject ? subject.color : PALETTE[state.subjects.length % PALETTE.length]);
+  buildColorPicker(els.colorPicker, subject ? subject.color : PALETTE[state.subjects.length % PALETTE.length]);
   els.subjectModalOverlay.classList.add('is-open');
   els.subjectName.focus();
 }
@@ -628,7 +735,7 @@ els.subjectForm.addEventListener('submit', (e) => {
     name: els.subjectName.value.trim(),
     examDate: els.subjectExamDate.value,
     weeklyTarget: Number(els.subjectWeeklyTarget.value) || 0,
-    color: selectedColor(),
+    color: selectedColorFrom(els.colorPicker),
   };
   if (!data.name) return;
   if (id) {
@@ -975,6 +1082,365 @@ function renderStats() {
 }
 
 /* ---------------------------------------------------------
+   Render: Habits (Habitub)
+   --------------------------------------------------------- */
+function editIconSVG() {
+  return '<svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+}
+
+function renderHabits() {
+  const total = state.habits.length;
+  const doneToday = state.habitLogs.filter(l => l.date === todayISO()).length;
+  els.statHabitsTracked.textContent = total;
+  els.statHabitsToday.textContent = `${doneToday}/${total}`;
+
+  const best = state.habits.reduce((m, h) => Math.max(m, habitCurrentStreak(h.id)), 0);
+  els.statBestStreak.textContent = `${best} 🔥`;
+
+  const weekStart = getMonday(new Date());
+  const weekEnd = addDays(weekStart, 6);
+  const weekCheckins = state.habitLogs.filter(l => {
+    const d = fromISODate(l.date);
+    return d >= weekStart && d <= weekEnd;
+  }).length;
+  els.statCheckinsWeek.textContent = weekCheckins;
+
+  els.todayHabitList.innerHTML = '';
+  if (total === 0) {
+    els.todayHabitList.innerHTML = '<p class="empty-note">No habits yet. Add one to start tracking.</p>';
+  } else {
+    state.habits.forEach(h => els.todayHabitList.appendChild(habitTaskItemEl(h)));
+  }
+
+  els.habitGrids.innerHTML = '';
+  if (total === 0) {
+    els.habitGrids.innerHTML = '<p class="empty-note">Your activity grids will appear here once you add a habit.</p>';
+  } else {
+    state.habits.forEach(h => els.habitGrids.appendChild(habitCardEl(h)));
+  }
+}
+
+function habitTaskItemEl(habit) {
+  const doneToday = state.habitLogs.some(l => l.habitId === habit.id && l.date === todayISO());
+  const el = document.createElement('div');
+  el.className = 'task-item' + (doneToday ? ' is-done' : '');
+  el.innerHTML = `
+    <span class="task-check">${checkIconSVG()}</span>
+    <span class="task-dot" style="background:${habit.color}"></span>
+    <div style="flex:1">
+      <div class="task-title">${escapeHTML(habit.name)}</div>
+    </div>
+    <span class="habit-mini-streak">${habitCurrentStreak(habit.id)} 🔥</span>
+  `;
+  el.querySelector('.task-check').addEventListener('click', () => toggleHabitDate(habit.id, todayISO()));
+  return el;
+}
+
+function habitCardEl(habit) {
+  const card = document.createElement('div');
+  card.className = 'habit-card';
+  const cur = habitCurrentStreak(habit.id);
+  const longest = habitLongestStreak(habit.id);
+  card.innerHTML = `
+    <div class="habit-card-head">
+      <div class="habit-name-row">
+        <span class="habit-dot" style="background:${habit.color}"></span>
+        <span class="habit-name">${escapeHTML(habit.name)}</span>
+      </div>
+      <div class="habit-streaks">
+        <span>Current: <b>${cur}</b></span>
+        <span>Best: <b>${longest}</b></span>
+      </div>
+      <div class="habit-card-actions">
+        <button type="button" class="habit-icon-btn" data-action="edit" title="Edit habit">${editIconSVG()}</button>
+      </div>
+    </div>
+    <div class="habit-grid-scroll"><div class="habit-grid"></div></div>
+  `;
+
+  const grid = card.querySelector('.habit-grid');
+  grid.style.setProperty('--habit-color', habit.color);
+  const weeks = habitGridRange(HABIT_GRID_WEEKS);
+  const doneSet = habitDatesSet(habit.id);
+  const todayD = fromISODate(todayISO());
+  const todayIso = todayISO();
+
+  weeks.forEach(week => {
+    const col = document.createElement('div');
+    col.className = 'habit-week';
+    week.forEach(date => {
+      const iso = toISODate(date);
+      const isFuture = date > todayD;
+      const isDone = doneSet.has(iso);
+      const cell = document.createElement('div');
+      cell.className = 'habit-day' + (isDone ? ' is-done' : '') + (isFuture ? ' is-future' : '') + (iso === todayIso ? ' is-today' : '');
+      cell.title = `${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}${isDone ? ' — done' : ''}`;
+      if (!isFuture) cell.addEventListener('click', () => toggleHabitDate(habit.id, iso));
+      col.appendChild(cell);
+    });
+    grid.appendChild(col);
+  });
+
+  card.querySelector('[data-action="edit"]').addEventListener('click', () => openHabitModal(habit.id));
+  return card;
+}
+
+function openHabitModal(id) {
+  const habit = id ? getHabit(id) : null;
+  els.habitModalTitle.textContent = habit ? 'Edit habit' : 'Add habit';
+  els.habitId.value = habit ? habit.id : '';
+  els.habitName.value = habit ? habit.name : '';
+  els.deleteHabitBtn.style.display = habit ? 'block' : 'none';
+  buildColorPicker(els.habitColorPicker, habit ? habit.color : PALETTE[state.habits.length % PALETTE.length]);
+  els.habitModalOverlay.classList.add('is-open');
+  els.habitName.focus();
+}
+function closeHabitModal() { els.habitModalOverlay.classList.remove('is-open'); }
+
+els.addHabitBtn.addEventListener('click', () => openHabitModal(null));
+els.habitModalClose.addEventListener('click', closeHabitModal);
+els.habitModalOverlay.addEventListener('click', (e) => { if (e.target === els.habitModalOverlay) closeHabitModal(); });
+
+els.habitForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const id = els.habitId.value;
+  const data = {
+    name: els.habitName.value.trim(),
+    color: selectedColorFrom(els.habitColorPicker),
+  };
+  if (!data.name) return;
+  if (id) Object.assign(getHabit(id), data);
+  else state.habits.push({ id: uid(), ...data });
+  save();
+  closeHabitModal();
+  renderHabits();
+});
+
+els.deleteHabitBtn.addEventListener('click', () => {
+  const id = els.habitId.value;
+  if (!id) return;
+  if (!confirm('Delete this habit? Its activity history will also be removed.')) return;
+  state.habits = state.habits.filter(h => h.id !== id);
+  state.habitLogs = state.habitLogs.filter(l => l.habitId !== id);
+  save();
+  closeHabitModal();
+  renderHabits();
+});
+
+/* ---------------------------------------------------------
+   Render: Diary (Goals Diary — Diary 3)
+   --------------------------------------------------------- */
+let diaryActiveScope = 'today';
+
+function weekKeyOf(dateISO) { return toISODate(getMonday(fromISODate(dateISO))); }
+function currentWeekKey() { return toISODate(getMonday(new Date())); }
+
+function diaryGoalsForScope(scope) {
+  if (scope === 'today') return state.diaryGoals.filter(g => g.scope === 'today' && g.date === todayISO());
+  if (scope === 'week') return state.diaryGoals.filter(g => g.scope === 'week' && weekKeyOf(g.date) === currentWeekKey());
+  return state.diaryGoals.filter(g => g.scope === 'future');
+}
+
+const DIARY_TITLES = { today: "Today's goals", week: "This week's goals", future: 'Future goals' };
+const DIARY_PLACEHOLDERS = {
+  today: 'What do you want to achieve today?',
+  week: 'What do you want to achieve this week?',
+  future: 'What do you want to achieve someday?',
+};
+
+function trashIconSVG() {
+  return '<svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6h16Z"/></svg>';
+}
+
+function renderDiary() {
+  $$('.tab-btn', els.diaryTabs).forEach(b => b.classList.toggle('is-active', b.dataset.scope === diaryActiveScope));
+  els.diaryPaneTitle.textContent = DIARY_TITLES[diaryActiveScope];
+  els.diaryGoalInput.placeholder = DIARY_PLACEHOLDERS[diaryActiveScope];
+
+  const list = diaryGoalsForScope(diaryActiveScope);
+  const doneCount = list.filter(g => g.done).length;
+  els.diaryPaneCount.textContent = `${doneCount}/${list.length} done`;
+
+  els.diaryGoalList.innerHTML = '';
+  if (list.length === 0) {
+    els.diaryGoalList.innerHTML = '<p class="empty-note">Nothing here yet — add your first goal above.</p>';
+    return;
+  }
+  list.slice().reverse().forEach(g => els.diaryGoalList.appendChild(diaryGoalItemEl(g)));
+}
+
+function diaryGoalItemEl(goal) {
+  const el = document.createElement('div');
+  el.className = 'task-item diary-item' + (goal.done ? ' is-done' : '');
+  el.innerHTML = `
+    <span class="task-check">${checkIconSVG()}</span>
+    <div class="diary-goal-body">
+      <div class="task-title">${escapeHTML(goal.text)}</div>
+      ${goal.description ? `<div class="diary-goal-desc">${escapeHTML(goal.description)}</div>` : ''}
+    </div>
+    <button type="button" class="diary-delete-btn" title="Delete">${trashIconSVG()}</button>
+  `;
+  el.querySelector('.task-check').addEventListener('click', () => toggleDiaryGoal(goal.id));
+  el.querySelector('.diary-delete-btn').addEventListener('click', () => deleteDiaryGoal(goal.id));
+  return el;
+}
+
+function toggleDiaryGoal(id) {
+  const g = state.diaryGoals.find(x => x.id === id);
+  if (!g) return;
+  g.done = !g.done;
+  save();
+  renderDiary();
+}
+function deleteDiaryGoal(id) {
+  state.diaryGoals = state.diaryGoals.filter(g => g.id !== id);
+  save();
+  renderDiary();
+}
+
+els.diaryTabs.addEventListener('click', (e) => {
+  const btn = e.target.closest('.tab-btn');
+  if (!btn) return;
+  diaryActiveScope = btn.dataset.scope;
+  renderDiary();
+});
+
+els.diaryGoalForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const text = els.diaryGoalInput.value.trim();
+  const description = els.diaryGoalDescInput.value.trim();
+  if (!text) return;
+  state.diaryGoals.push({ id: uid(), scope: diaryActiveScope, text, description, done: false, date: todayISO() });
+  els.diaryGoalInput.value = '';
+  els.diaryGoalDescInput.value = '';
+  save();
+  renderDiary();
+});
+
+/* ---------------------------------------------------------
+   Clock
+   --------------------------------------------------------- */
+let clockIntervalId = null;
+function updateClock() {
+  const now = new Date();
+  const h = now.getHours();
+  els.clockTime.textContent = `${pad(h)}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  els.clockDate.textContent = now.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  els.clockIcon.textContent = h < 6 ? '🌙' : h < 12 ? '🌤️' : h < 18 ? '☀️' : h < 21 ? '🌇' : '🌙';
+  try { els.clockTZ.textContent = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (e) { els.clockTZ.textContent = ''; }
+}
+function startClock() {
+  updateClock();
+  if (clockIntervalId) clearInterval(clockIntervalId);
+  clockIntervalId = setInterval(updateClock, 1000);
+}
+
+/* ---------------------------------------------------------
+   Calculator
+   --------------------------------------------------------- */
+const calc = { current: '0', previous: null, operator: null, overwrite: true };
+
+function trimNumber(n) {
+  if (!Number.isFinite(n)) return 'Error';
+  return String(Math.round(n * 1e10) / 1e10);
+}
+
+function updateCalcDisplay() {
+  els.calcResult.textContent = calc.current;
+  els.calcExpression.textContent = calc.operator ? `${calc.previous} ${calc.operator}` : '';
+}
+
+function calcInputDigit(d) {
+  if (calc.overwrite) {
+    calc.current = d === '.' ? '0.' : d;
+    calc.overwrite = false;
+  } else if (d === '.') {
+    if (!calc.current.includes('.')) calc.current += '.';
+  } else {
+    calc.current = calc.current === '0' ? d : calc.current + d;
+  }
+  updateCalcDisplay();
+}
+
+function calcCompute() {
+  const prev = parseFloat(calc.previous);
+  const curr = parseFloat(calc.current);
+  if (Number.isNaN(prev) || Number.isNaN(curr)) return;
+  let result;
+  switch (calc.operator) {
+    case '+': result = prev + curr; break;
+    case '−': result = prev - curr; break;
+    case '×': result = prev * curr; break;
+    case '÷': result = curr === 0 ? NaN : prev / curr; break;
+    default: return;
+  }
+  calc.current = trimNumber(result);
+  calc.operator = null;
+  calc.previous = null;
+  calc.overwrite = true;
+}
+
+function calcChooseOperator(op) {
+  if (calc.operator && !calc.overwrite) calcCompute();
+  calc.previous = calc.current;
+  calc.operator = op;
+  calc.overwrite = true;
+  updateCalcDisplay();
+}
+
+function calcClear() {
+  calc.current = '0';
+  calc.previous = null;
+  calc.operator = null;
+  calc.overwrite = true;
+  updateCalcDisplay();
+}
+
+function calcBackspace() {
+  if (calc.overwrite) return;
+  calc.current = calc.current.length > 1 ? calc.current.slice(0, -1) : '0';
+  if (calc.current === '-') calc.current = '0';
+  updateCalcDisplay();
+}
+
+function calcPercent() {
+  calc.current = trimNumber(parseFloat(calc.current) / 100);
+  updateCalcDisplay();
+}
+
+function calcEquals() {
+  if (calc.operator === null) return;
+  const prevText = calc.previous, opText = calc.operator, currText = calc.current;
+  calcCompute();
+  els.calcExpression.textContent = `${prevText} ${opText} ${currText} =`;
+  els.calcResult.textContent = calc.current;
+}
+
+els.calcGrid.addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  if (btn.dataset.num !== undefined) calcInputDigit(btn.dataset.num);
+  else if (btn.dataset.op) calcChooseOperator(btn.dataset.op);
+  else if (btn.dataset.action === 'clear') calcClear();
+  else if (btn.dataset.action === 'backspace') calcBackspace();
+  else if (btn.dataset.action === 'percent') calcPercent();
+  else if (btn.dataset.action === 'equals') calcEquals();
+});
+
+document.addEventListener('keydown', (e) => {
+  if (currentViewName() !== 'calculator') return;
+  if (e.key >= '0' && e.key <= '9') calcInputDigit(e.key);
+  else if (e.key === '.') calcInputDigit('.');
+  else if (e.key === '+') calcChooseOperator('+');
+  else if (e.key === '-') calcChooseOperator('−');
+  else if (e.key === '*') calcChooseOperator('×');
+  else if (e.key === '/') { e.preventDefault(); calcChooseOperator('÷'); }
+  else if (e.key === 'Enter' || e.key === '=') calcEquals();
+  else if (e.key === 'Backspace') calcBackspace();
+  else if (e.key === 'Escape') calcClear();
+});
+
+/* ---------------------------------------------------------
    Master render dispatcher
    --------------------------------------------------------- */
 function currentViewName() {
@@ -989,6 +1455,8 @@ function renderAll(activeView) {
   renderPlanner();
   renderSessionLog();
   renderStats();
+  renderHabits();
+  renderDiary();
 }
 
 /* ---------------------------------------------------------
@@ -998,6 +1466,8 @@ function initApp() {
   applyTheme();
   updateTimerDisplay();
   renderAll('dashboard');
+  startClock();
+  calcClear();
 }
 
 /* ---------------------------------------------------------
@@ -1010,4 +1480,3 @@ if (isLoggedIn() && getStoredUser()) {
 } else {
   showAuthScreen();
 }
-
