@@ -92,6 +92,7 @@ function seedState() {
     diaryGoals: [
       { id: uid(), scope: 'today', text: 'Finish the integration practice set', description: 'Chapters 6–7, at least 15 problems. Focus on substitution method first.', done: false, date: iso(0) },
       { id: uid(), scope: 'week', text: 'Complete 3 mock tests', description: 'One per subject — Math, Data Structures, JavaScript. Review mistakes after each.', done: false, date: iso(0) },
+      { id: uid(), scope: 'month', text: 'Finish the Data Structures syllabus', description: 'Trees, graphs and dynamic programming — revise everything once before the mock exam.', done: false, date: iso(0) },
       { id: uid(), scope: 'future', text: 'Get into a strong engineering program', description: '', done: false, date: iso(0) },
     ],
   };
@@ -1235,16 +1236,54 @@ let diaryActiveScope = 'today';
 function weekKeyOf(dateISO) { return toISODate(getMonday(fromISODate(dateISO))); }
 function currentWeekKey() { return toISODate(getMonday(new Date())); }
 
+function monthKeyOf(dateISO) { return dateISO.slice(0, 7); }
+function currentMonthKey() { return todayISO().slice(0, 7); }
+
 function diaryGoalsForScope(scope) {
   if (scope === 'today') return state.diaryGoals.filter(g => g.scope === 'today' && g.date === todayISO());
   if (scope === 'week') return state.diaryGoals.filter(g => g.scope === 'week' && weekKeyOf(g.date) === currentWeekKey());
+  if (scope === 'month') return state.diaryGoals.filter(g => g.scope === 'month' && monthKeyOf(g.date) === currentMonthKey());
   return state.diaryGoals.filter(g => g.scope === 'future');
 }
 
-const DIARY_TITLES = { today: "Today's goals", week: "This week's goals", future: 'Future goals' };
+/* Auto carry-over: an unfinished goal moves one level up once its period has ended
+   today -> week -> month -> future. Finished goals stay where they are.
+   Processed from the top down so a goal only moves ONE level per run. */
+function rolloverDiaryGoals() {
+  const today = todayISO();
+  const weekKey = currentWeekKey();
+  const monthKey = currentMonthKey();
+  let changed = false;
+
+  state.diaryGoals.forEach(g => {
+    if (g.done) return;
+    if (g.scope === 'month' && monthKeyOf(g.date) < monthKey) {
+      g.scope = 'future'; g.carriedFrom = 'month'; changed = true;
+    }
+  });
+  state.diaryGoals.forEach(g => {
+    if (g.done) return;
+    if (g.scope === 'week' && weekKeyOf(g.date) < weekKey) {
+      g.scope = 'month'; g.date = today; g.carriedFrom = 'week'; changed = true;
+    }
+  });
+  state.diaryGoals.forEach(g => {
+    if (g.done) return;
+    if (g.scope === 'today' && g.date < today) {
+      g.scope = 'week'; g.date = today; g.carriedFrom = 'today'; changed = true;
+    }
+  });
+
+  if (changed) save();
+  return changed;
+}
+
+const DIARY_TITLES = { today: "Today's goals", week: "This week's goals", month: "This month's goals", future: 'Future goals' };
+const DIARY_SCOPE_LABEL = { today: 'Today', week: 'Week', month: 'Month' };
 const DIARY_PLACEHOLDERS = {
   today: 'What do you want to achieve today?',
   week: 'What do you want to achieve this week?',
+  month: 'What do you want to achieve this month?',
   future: 'What do you want to achieve someday?',
 };
 
@@ -1253,6 +1292,7 @@ function trashIconSVG() {
 }
 
 function renderDiary() {
+  rolloverDiaryGoals();
   $$('.tab-btn', els.diaryTabs).forEach(b => b.classList.toggle('is-active', b.dataset.scope === diaryActiveScope));
   els.diaryPaneTitle.textContent = DIARY_TITLES[diaryActiveScope];
   els.diaryGoalInput.placeholder = DIARY_PLACEHOLDERS[diaryActiveScope];
@@ -1275,7 +1315,7 @@ function diaryGoalItemEl(goal) {
   el.innerHTML = `
     <span class="task-check">${checkIconSVG()}</span>
     <div class="diary-goal-body">
-      <div class="task-title">${escapeHTML(goal.text)}</div>
+      <div class="task-title">${escapeHTML(goal.text)}${goal.carriedFrom ? `<span class="diary-carried" title="Not finished, so it moved up automatically">↑ from ${DIARY_SCOPE_LABEL[goal.carriedFrom]}</span>` : ''}</div>
       ${goal.description ? `<div class="diary-goal-desc">${escapeHTML(goal.description)}</div>` : ''}
     </div>
     <button type="button" class="diary-delete-btn" title="Delete">${trashIconSVG()}</button>
@@ -1289,6 +1329,7 @@ function toggleDiaryGoal(id) {
   const g = state.diaryGoals.find(x => x.id === id);
   if (!g) return;
   g.done = !g.done;
+  if (g.done) delete g.carriedFrom;
   save();
   renderDiary();
 }
@@ -1463,6 +1504,8 @@ function renderAll(activeView) {
    Init
    --------------------------------------------------------- */
 function initApp() {
+  // Re-check carry-over every minute so it also works if the app stays open past midnight
+  setInterval(() => { if (rolloverDiaryGoals()) renderDiary(); }, 60 * 1000);
   applyTheme();
   updateTimerDisplay();
   renderAll('dashboard');

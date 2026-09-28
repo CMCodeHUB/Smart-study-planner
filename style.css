@@ -675,7 +675,7 @@ h2{ font-size: var(--text-lg); }
   margin-bottom:18px;
 }
 .tab-btn{
-  padding:8px 18px; border-radius: var(--radius-pill); font-size:var(--text-sm); font-weight:700; color: var(--ink-dim);
+  padding:8px 18px; white-space:nowrap; border-radius: var(--radius-pill); font-size:var(--text-sm); font-weight:700; color: var(--ink-dim);
   transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
 }
 .tab-btn.is-active{ background: var(--amber); color:#241A08; }
@@ -695,6 +695,13 @@ h2{ font-size: var(--text-lg); }
   font-size:var(--text-sm); color: var(--ink-dim); margin-top:3px;
   white-space:pre-wrap; word-break:break-word;
 }
+.diary-carried{
+  display:inline-block; margin-left:8px; padding:2px 8px; border-radius: var(--radius-pill);
+  font-size:var(--text-xs); font-weight:700; letter-spacing:0.02em;
+  background: var(--surface); border:1px solid var(--border-soft); color: var(--ink-dim);
+  vertical-align:middle;
+}
+.tabs{ max-width:100%; overflow-x:auto; }
 .task-item.diary-item{ align-items:flex-start; }
 .task-item.diary-item .task-check{ margin-top:1px; }
 .task-item.diary-item .diary-delete-btn{ margin-top:1px; }
